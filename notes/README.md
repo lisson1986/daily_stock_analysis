@@ -1,1 +1,8 @@
-IyDmr4/ml6XogqHnpajlrabkuaDlvZLmoaMKCuavj+WkqeaXqeS4iiA4IOeCueaOqOmAgeeahOiCoeelqOWtpuS5oOeslOiusO+8jOaMieaXpeacn+W9kuaho++8jOaJi+acuua1j+iniOWZqOWPr+ebtOaOpeaJk+W8gOmYheivu+OAggoKIyMg5b2S5qGj5YiX6KGo77yI5pyA5paw5Zyo5YmN77yJCgotIFsyMDI2LTEwLTA3XSgyMDI2LTEwLTA3Lm1kKSDigJQg5YW05Lia6ZO26KGM44CB5pmL5Lq/5a6e5Lia44CB5bGx6KW/5rG+6YWS44CB5Lit5Zu96ZO26KGM44CB5a6d5L+h6L2v5Lu277yb576O6IKh5Yib5paw6auY77yMRk9NQyDnuqropoHku4rmmZrlhazluIMK
+# 每日股票学习归档
+
+每天早上 8 点推送的股票学习笔记，按日期归档，手机浏览器可直接打开阅读。
+
+## 归档列表（最新在前）
+
+- [2026-10-08](2026-10-08.md) — 长春高新、华泰证券、五粮液、宝钢股份、北方稀土；A 股国庆后复市，美债收益率创 2002 年来最高，FOMC 纪要偏鹰
+- [2026-10-07](2026-10-07.md) — 兴业银行、晋亿实业、山西汾酒、中国银行、宝信软件；美股创新高，FOMC 纪要今晚公布
