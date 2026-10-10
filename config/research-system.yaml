@@ -1,0 +1,42 @@
+schema_version: 1
+strategy_version: paper-v1
+watchlist: ['300136', '301297']
+research_count: 100
+deep_analysis_count: 10
+snapshot_sources: [sina, efinance, akshare_em]
+initial_cash: 200000
+max_positions: 5
+position_fraction: 0.20
+exposure_fraction: 0.80
+risk_fraction: 0.01
+holding_sessions: 5
+stop_fraction: 0.05
+take_profit_fraction: 0.10
+trail_activate_fraction: 0.06
+trail_fraction: 0.04
+entry_gap_fraction: 0.02
+slippage_bps: 10
+commission_fraction: 0.0003
+commission_min: 5
+# Explicit simulation assumptions; replace with verified dated broker/tax rates.
+sell_tax_fraction: 0.0005
+transfer_fee_fraction: 0.00001
+volume_fraction: 0.01
+pause_drawdown_fraction: 0.08
+exit_drawdown_fraction: 0.12
+news_days: 7
+source_domains:
+  - reuters.com
+  - ft.com
+  - bloomberg.com
+  - wsj.com
+  - cnbc.com
+  - federalreserve.gov
+  - ecb.europa.eu
+  - nvidia.com
+  - investor.tsmc.com
+  - investors.micron.com
+  - samsung.com
+macro_queries:
+  - 'global stocks bond yields dollar oil China markets Reuters'
+  - 'AI semiconductor smartphone memory supply chain Reuters'

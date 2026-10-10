@@ -260,6 +260,21 @@ class BacktestServiceTestCase(unittest.TestCase):
             simulated_return_pct=1.0,
         )
 
+    def test_explicit_no_refill_preserves_missing_raw_price_window(self) -> None:
+        self._seed_analysis(
+            query_id='no-refill-raw', code='600520', analysis_date=date(2024, 1, 2),
+            created_at=datetime(2024, 1, 2), operation_advice='买入', trend_prediction='看多',
+            start_close=100, forward_bars=[], phase='postmarket',
+        )
+        service = BacktestService(db_manager=self.db)
+        with patch.object(service, '_try_fill_daily_data') as refill:
+            result = service.run_backtest(code='600520', force=True, refill_missing_daily=False)
+            refill.assert_not_called()
+            self.assertGreater(result['insufficient'], 0)
+        with patch.object(service, '_try_fill_daily_data') as refill:
+            service.run_backtest(code='600520', force=True)
+            refill.assert_called()
+
     def test_kr_suffix_filter_reaches_legacy_bare_history(self) -> None:
         self._seed_legacy_offshore_analysis(
             query_id="q_kr_legacy_bare_filter",

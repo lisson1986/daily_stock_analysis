@@ -52,6 +52,7 @@ class BacktestService:
         analysis_date_from: Optional[date] = None,
         analysis_date_to: Optional[date] = None,
         limit: int = 200,
+        refill_missing_daily: bool = True,
     ) -> Dict[str, Any]:
         config = get_config()
 
@@ -146,7 +147,8 @@ class BacktestService:
                     )
 
                 if (
-                    daily_identity is not None
+                    refill_missing_daily
+                    and daily_identity is not None
                     and expected_start_date is not None
                     and (
                         daily_window is None
