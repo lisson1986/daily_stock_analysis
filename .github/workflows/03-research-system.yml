@@ -1,0 +1,125 @@
+name: 完整研究与模拟交易
+
+on:
+  schedule:
+    - cron: '30 23 * * 0-4'
+    - cron: '0 10 * * 1-5'
+    - cron: '0 2 * * 6'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'initialize仅首次使用；close结算；weekly回测复盘'
+        type: choice
+        required: true
+        default: close
+        options: [initialize, morning, close, weekly, replay, catch-up]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stock-analysis
+  cancel-in-progress: false
+
+jobs:
+  research:
+    if: github.event_name == 'workflow_dispatch' || vars.RESEARCH_SYSTEM_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: STOCK_LIST
+    env:
+      RESEARCH_STATE_REPO: ${{ vars.RESEARCH_STATE_REPO }}
+      RESEARCH_STATE_TOKEN: ${{ secrets.RESEARCH_STATE_TOKEN }}
+      RESEARCH_CONFIG_PATH: config/research-system.yaml
+      RESEARCH_PAPER_DB: data/paper_research.db
+      RESEARCH_STATE_DIR: private-state/checkpoint
+      DATABASE_PATH: ./data/stock_analysis.db
+      # Reuse the user's existing route; no model/provider is silently selected here.
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL || secrets.OPENAI_BASE_URL }}
+      OPENAI_MODEL: ${{ vars.OPENAI_MODEL || secrets.OPENAI_MODEL }}
+      LITELLM_MODEL: ${{ vars.LITELLM_MODEL || secrets.LITELLM_MODEL }}
+      LITELLM_CONFIG: ${{ secrets.LITELLM_CONFIG }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || secrets.GEMINI_MODEL }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      TAVILY_API_KEYS: ${{ secrets.TAVILY_API_KEYS }}
+      BRAVE_API_KEYS: ${{ secrets.BRAVE_API_KEYS }}
+      SERPAPI_API_KEYS: ${{ secrets.SERPAPI_API_KEYS }}
+      NEWS_STRATEGY_PROFILE: medium
+      NEWS_MAX_AGE_DAYS: '7'
+      REPORT_TYPE: full
+      REPORT_LANGUAGE: zh
+      MARKET_REVIEW_ENABLED: 'false'
+      SCHEDULE_ENABLED: 'false'
+      MAX_WORKERS: '1'
+      ENABLE_CHIP_DISTRIBUTION: 'false'
+      SAVE_CONTEXT_SNAPSHOT: 'true'
+      TZ: Asia/Shanghai
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: 安装依赖
+        run: python -m pip install -r requirements.txt
+      - name: 验证私有状态仓库
+        run: python scripts/run_research.py validate-state-repo
+      - name: 读取私有状态
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ vars.RESEARCH_STATE_REPO }}
+          token: ${{ secrets.RESEARCH_STATE_TOKEN }}
+          path: private-state
+      - name: 选择任务
+        id: mode
+        env:
+          INPUT_MODE: ${{ inputs.mode }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          mode="$INPUT_MODE"
+          if [ -z "$mode" ]; then
+            case "$EVENT_SCHEDULE" in
+              '30 23 * * 0-4') mode=morning ;;
+              '0 10 * * 1-5') mode=close ;;
+              '0 2 * * 6') mode=weekly ;;
+              *) echo 'Unknown schedule'; exit 1 ;;
+            esac
+          fi
+          echo "value=$mode" >> "$GITHUB_OUTPUT"
+      - name: 恢复并校验账本
+        if: steps.mode.outputs.value != 'initialize'
+        run: python scripts/run_research.py restore
+      - name: 执行研究与模拟
+        env:
+          RESEARCH_MODE: ${{ steps.mode.outputs.value }}
+        run: python scripts/run_research.py "$RESEARCH_MODE"
+      - name: 创建一致性备份
+        if: steps.mode.outputs.value != 'initialize'
+        run: python scripts/run_research.py checkpoint
+      - name: 原子发布状态
+        id: publish
+        working-directory: private-state
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ACTOR: ${{ github.actor }}
+        run: |
+          git config user.name "$RUN_ACTOR"
+          git config user.email "$RUN_ACTOR@users.noreply.github.com"
+          git add checkpoint/
+          if ! git diff --cached --quiet; then
+            git commit -m "Persist paper research state for run $RUN_ID"
+            # Fast-forward push rejects conflicts; do not force or reset state.
+            git push
+          fi
+      - name: 上传已保存的报告
+        if: steps.publish.outcome == 'success'
+        uses: actions/upload-artifact@v6
+        with:
+          name: research-reports-${{ github.run_number }}
+          path: reports/research/
+          retention-days: 30
