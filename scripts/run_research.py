@@ -125,11 +125,12 @@ def main(argv=None):
             report = close_research(cfg, store, now)
     elif args.mode == 'morning':
         session, _ = current_session(now)
+        from src.research.morning import morning_holdings
         report = {'session': session, 'macro': macro_research(cfg, now) if session else [],
-                  'existing_orders': store.state()['orders'], 'mode': 'information_only',
-                  'limitations': ['Morning information never rewrites frozen paper orders.']}
-        if session:
-            report = store.save_packet(f'morning-{session}', report)
+                  'deep_research': morning_holdings(cfg, now) if session else
+                      {'holdings': [], 'complete': False, 'error': 'Non-trading day'},
+                  'mode': 'information_only',
+                  'limitations': ['Morning research does not write paper orders, fills or state.']}
     elif args.mode == 'catch-up':
         report = catch_up(store, cfg, now)
     elif args.mode == 'weekly':
