@@ -24,7 +24,7 @@ def test_morning_reports_no_session_without_model_or_market_calls():
         result = morning.morning_holdings({}, datetime(2026, 10, 18, 8, tzinfo=ZoneInfo('Asia/Shanghai')))
     assert result['complete'] is False
     assert result['holdings'] == []
-    assert result['coverage'] if 'coverage' in result else True
+    assert result.get('coverage', 0) == 0
 
 
 def test_morning_script_never_settles_or_saves_packet():
