@@ -104,9 +104,10 @@ jobs:
           RESEARCH_MODE: ${{ steps.mode.outputs.value }}
         run: python scripts/run_research.py "$RESEARCH_MODE"
       - name: 创建一致性备份
-        if: steps.mode.outputs.value != 'initialize'
+        if: steps.mode.outputs.value != 'initialize' && steps.mode.outputs.value != 'morning'
         run: python scripts/run_research.py checkpoint
       - name: 原子发布状态
+        if: steps.mode.outputs.value != 'morning'
         id: publish
         working-directory: private-state
         env:
@@ -122,7 +123,7 @@ jobs:
             git push
           fi
       - name: 上传已保存的报告
-        if: steps.publish.outcome == 'success'
+        if: steps.mode.outputs.value == 'morning' || steps.publish.outcome == 'success'
         uses: actions/upload-artifact@v6
         with:
           name: research-reports-${{ github.run_number }}
