@@ -136,13 +136,16 @@ def close_research(cfg, store, now):
     except Exception as exc:
         snapshot_source = None
         errors.append({'stage': 'snapshot', 'error': str(exc)})
-    # Fixed watchlist is always included, even when the market snapshot fails.
+    # Research-only overlay: include held 301660 without changing hashed paper config.
+    # It is deliberately excluded from paper entry candidates below.
+    research_only = {'301660'}
+    priority_codes = set(cfg['watchlist']) | research_only
     existing_codes = {r['code'] for r in pool}
-    for code in cfg['watchlist']:
+    for code in priority_codes:
         if code not in existing_codes:
             pool.append({'code': code, 'name': code, 'screen_score': None})
-    fixed = [r for r in pool if r['code'] in cfg['watchlist']]
-    pool = fixed + [r for r in pool if r['code'] not in cfg['watchlist']][:cfg['research_count'] - len(fixed)]
+    fixed = [r for r in pool if r['code'] in priority_codes]
+    pool = fixed + [r for r in pool if r['code'] not in priority_codes][:cfg['research_count'] - len(fixed)]
     for row in pool:
         code = row['code']
         try:
@@ -154,8 +157,8 @@ def close_research(cfg, store, now):
             dsa_db.save_daily_data(hist, code, data_source=str(hist.iloc[-1].get('source', 'paper_raw_fixture')))
         except Exception as exc:
             row['daily_error'] = str(exc)
-    deep = [r for r in pool if r['code'] in cfg['watchlist']]
-    deep += [r for r in pool if r['code'] not in cfg['watchlist']][:max(0, cfg['deep_analysis_count'] - len(deep))]
+    deep = [r for r in pool if r['code'] in priority_codes]
+    deep += [r for r in pool if r['code'] not in priority_codes][:max(0, cfg['deep_analysis_count'] - len(deep))]
     deep = deep[:cfg['deep_analysis_count']]
     analyzer = GeminiAnalyzer(config=get_config())
     macro_summary = None
@@ -200,7 +203,7 @@ def close_research(cfg, store, now):
                 raise RuntimeError(result.error_message or 'Model analysis unsuccessful')
             # Rule score plus fresh evidence; no forced buy when a model/source fails.
             features = row['daily_features']
-            if (snapshot_source and result.action == 'buy' and news
+            if (code not in research_only and snapshot_source and result.action == 'buy' and news
                     and features.get('price_above_ma20') and code not in state['positions']):
                 bar = verified_bar(code)
                 if bar['buyable']:
