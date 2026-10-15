@@ -77,7 +77,48 @@ def raw_history(code, start, end):
         return frame.sort_values('date').reset_index(drop=True)
     except Exception as exc:
         errors.append(f'akshare_raw: {exc}')
+    try:
+        return _sina_raw_history(code, start, end)
+    except Exception as exc:
+        errors.append(f'sina_raw: {exc}')
     raise ValueError('Unadjusted history sources failed: ' + '; '.join(errors))
+
+
+def _sina_raw_history(code, start, end):
+    """Independent Sina fallback, raw OHLCV in shares; fail closed on malformed bars."""
+    import akshare as ak
+    import pandas as pd
+    from src.services.screening.source_guard import call_with_timeout
+    if not eligible(code):
+        raise ValueError('Unsupported A-share code')
+    symbol = ('sh' if code.startswith(('6', '9')) else 'sz') + code
+    frame = call_with_timeout(
+        lambda: ak.stock_zh_a_daily(symbol=symbol, start_date=start.replace('-', ''),
+                                    end_date=end.replace('-', ''), adjust=''),
+        timeout_sec=15, label='paper_raw_sina')
+    if frame is None or frame.empty:
+        raise ValueError('Empty Sina unadjusted history')
+    required = ('date', 'open', 'close', 'high', 'low', 'volume')
+    if any(column not in frame.columns for column in required):
+        raise ValueError('Missing Sina OHLCV columns')
+    frame = frame.copy()
+    frame['date'] = frame['date'].astype(str).str[:10]
+    for column in required[1:]:
+        frame[column] = pd.to_numeric(frame[column], errors='raise')
+    frame = frame[(frame['date'] >= start) & (frame['date'] <= end)]
+    if frame.empty or frame['date'].duplicated().any():
+        raise ValueError('Empty or duplicate Sina bars')
+    if not all(pd.to_datetime(frame['date'], errors='coerce').notna()):
+        raise ValueError('Invalid Sina bar dates')
+    if (frame[list(required[1:])] <= 0).any().any():
+        raise ValueError('Nonpositive Sina OHLCV')
+    if ((frame['high'] < frame[['open', 'close', 'low']].max(axis=1)) |
+            (frame['low'] > frame[['open', 'close', 'high']].min(axis=1))).any():
+        raise ValueError('Inconsistent Sina OHLC')
+    frame['adjustment'] = 'none'
+    frame['source'] = 'sina_raw_day'
+    return frame.sort_values('date').reset_index(drop=True)
+
 
 
 def _tencent_raw_history(code, start, end):
