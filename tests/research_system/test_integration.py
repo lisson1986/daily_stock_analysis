@@ -119,8 +119,11 @@ def test_close_runner_uses_real_dsa_storage_with_mocked_external_io(cfg, tmp_pat
 
     monkeypatch.setattr(GeminiAnalyzer, 'analyze', analysis)
     report = close_research(cfg, store, datetime(2026, 10, 9, 18, tzinfo=ZoneInfo('Asia/Shanghai')))
-    assert report['research']['coverage'] == 2
+    assert report['research']['coverage'] == 3
+    assert {'300136', '301297', '301660'}.issubset({r['code'] for r in report['research']['pool']})
+    assert {'300136', '301297', '301660'}.issubset({r['code'] for r in report['research']['deep']})
     assert len(report['state']['orders']) == 1
+    assert report['state']['orders'][0]['code'] != '301660'
     assert not report['fills']
     db = DatabaseManager.get_instance()
     assert len(db.get_latest_data('300136', days=5)) == 5
