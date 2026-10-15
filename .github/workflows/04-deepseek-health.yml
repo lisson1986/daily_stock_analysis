@@ -1,0 +1,58 @@
+name: DeepSeek official API health check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deepseek-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+    steps:
+      - name: Check official DeepSeek API (no research or paper ledger writes)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, os, sys, urllib.request, urllib.error
+          key = os.getenv("DEEPSEEK_API_KEY", "").strip()
+          if not key:
+              print("ERROR: DEEPSEEK_API_KEY secret is missing")
+              sys.exit(1)
+          payload = {
+              "model": "deepseek-flash",
+              "messages": [{"role": "user", "content": "Reply with exactly: OK"}],
+              "stream": False,
+              "max_tokens": 128,
+              "thinking": {"type": "disabled"}
+          }
+          request = urllib.request.Request(
+              "https://api.deepseek.com/chat/completions",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=45) as response:
+                  body = json.load(response)
+          except urllib.error.HTTPError as exc:
+              print(f"ERROR: DeepSeek API HTTP {exc.code}; check official account balance, model access and request compatibility")
+              sys.exit(1)
+          except Exception as exc:
+              print(f"ERROR: DeepSeek API transport failure ({type(exc).__name__})")
+              sys.exit(1)
+          choices = body.get("choices") or []
+          message = (choices[0].get("message") or {}) if choices else {}
+          answer = message.get("content")
+          if not isinstance(answer, str) or not answer.strip():
+              print("ERROR: DeepSeek API returned empty content")
+              sys.exit(1)
+          usage = body.get("usage") or {}
+          print("PASS: Official DeepSeek API returned non-empty content")
+          print("Model requested: deepseek-flash")
+          print("Response content length:", len(answer))
+          print("Usage total tokens:", usage.get("total_tokens", "unavailable"))
+          PY
