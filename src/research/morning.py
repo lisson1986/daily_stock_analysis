@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from src.research.runner import collect_news, current_session, daily_context, json_safe
 from src.research.sources import raw_history
@@ -19,13 +20,14 @@ def morning_holdings(cfg, now):
 
     session, previous = current_session(now)
     # Read completed bars only. Do not require a same-day bar in the morning.
-    cutoff = previous if session else now.date().isoformat()
+    local = now.astimezone(ZoneInfo('Asia/Shanghai'))
+    cutoff = previous if session else None
     result = {'as_of_session': cutoff, 'mode': 'research_only',
               'holdings': [], 'complete': False,
               'limitations': ['Read-only premarket analysis; no orders, fills or settlement.',
                               'Last completed session data only; never a live price.']}
     if not cutoff:
-        result['error'] = 'No completed trading session available'
+        result['error'] = 'No completed trading session available (non-trading day)'
         return result
     analyzer = None
     manager = None
@@ -33,7 +35,7 @@ def morning_holdings(cfg, now):
         packet = {'code': code, 'as_of_session': cutoff, 'analysis': None,
                   'evidence': None, 'data_source': None, 'data_date': None}
         try:
-            history = raw_history(code, (now.date() - timedelta(days=180)).isoformat(), cutoff)
+            history = raw_history(code, (local.date() - timedelta(days=180)).isoformat(), cutoff)
             if history.empty:
                 raise ValueError('Empty daily history')
             last = str(history.iloc[-1]['date'])[:10]
