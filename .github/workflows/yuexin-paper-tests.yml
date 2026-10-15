@@ -22,4 +22,4 @@ jobs:
       - run: python scripts/check_research_coverage.py
       - name: Ensure no accidental changes to production strategy
         run: |
-          git diff --exit-code origin/main...HEAD -- config/research-system.yaml .github/workflows/03-research-system.yml src/research/paper.py
+          git fetch --no-tags --depth=1 origin main\n          git diff --exit-code origin/main HEAD -- config/research-system.yaml .github/workflows/03-research-system.yml src/research/paper.py
