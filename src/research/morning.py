@@ -43,13 +43,36 @@ def morning_holdings(cfg, now):
             packet['data_source'] = str(history.iloc[-1].get('source', 'unknown'))
             if last != cutoff:
                 raise ValueError('Stale daily history: ' + last + ' (expected ' + cutoff + ')')
-            if len(history) < 20:
-                raise ValueError('Insufficient daily history (<20 bars)')
+            if len(history) < 2:
+                raise ValueError('Insufficient daily history (<2 bars)')
+            limited_history = len(history) < 20
+            packet['history_bars'] = len(history)
+            packet['history_quality'] = 'limited' if limited_history else 'standard'
             if manager is None:
                 manager = DataFetcherManager()
-            features = json_safe(compute_daily_features(history))
+            features = ({'insufficient_history': True, 'available_bars': len(history)}
+                        if limited_history else json_safe(compute_daily_features(history)))
             row = {'code': code, 'name': code, 'daily_features': features}
-            context = daily_context(code, row, history, cfg, now, manager)
+            if limited_history:
+                # Research-only short-history packet: no MA20, no synthetic bars or orders.
+                latest = history.iloc[-1].to_dict()
+                previous_bar = history.iloc[-2].to_dict()
+                context = {'code': code, 'stock_name': code,
+                           'market_phase_summary': {'market': 'cn', 'phase': 'premarket',
+                                                    'effective_daily_bar_date': last,
+                                                    'trigger_source': 'research_morning'},
+                           'today': json_safe(latest), 'yesterday': json_safe(previous_bar),
+                           'technical_analysis': features,
+                           'data_quality': {'history_bars': len(history),
+                                            'price_adjustment': 'none',
+                                            'limitations': ['Fewer than 20 daily bars; MA20 and long-horizon indicators unavailable.',
+                                                            'Limited-history research only; not a trading signal.']}}
+                try:
+                    context['fundamental_context'] = json_safe(manager.get_fundamental_context(code))
+                except Exception as exc:
+                    context['fundamental_context'] = {'available': False, 'error': str(exc)}
+            else:
+                context = daily_context(code, row, history, cfg, now, manager)
             context['market_phase_summary']['phase'] = 'premarket'
             context['market_phase_summary']['trigger_source'] = 'research_morning'
             packet['evidence'] = collect_news(cfg, now, code, [code, 'company earnings supply chain'])
@@ -63,11 +86,13 @@ def morning_holdings(cfg, now):
             if not model.success:
                 raise RuntimeError(model.error_message or 'Model analysis unsuccessful')
             packet['analysis'] = json_safe(model.to_dict())
-            packet['status'] = 'complete'
+            packet['status'] = 'limited' if limited_history else 'complete'
         except Exception as exc:
             packet['status'] = 'unavailable'
             packet['error'] = str(exc)
         result['holdings'].append(json_safe(packet))
     result['complete'] = all(p['status'] == 'complete' for p in result['holdings'])
-    result['coverage'] = sum(p['status'] == 'complete' for p in result['holdings'])
+    result['coverage'] = sum(p['status'] in ('complete', 'limited') for p in result['holdings'])
+    result['full_coverage'] = sum(p['status'] == 'complete' for p in result['holdings'])
+    result['limited_coverage'] = sum(p['status'] == 'limited' for p in result['holdings'])
     return json_safe(result)
