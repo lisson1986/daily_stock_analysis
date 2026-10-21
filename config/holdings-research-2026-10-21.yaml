@@ -1,0 +1,37 @@
+schema_version: 1
+snapshot_date: '2026-10-21'
+snapshot_time: '17:54'
+timezone: Asia/Shanghai
+source: user_supplied_brokerage_screenshot
+mode: research_only
+account:
+  total_assets_cny: 87975.10
+  securities_value_cny: 87975.00
+  available_cash_cny: 0.00
+  displayed_account_holding_pnl_cny: -29678.04
+  daily_pnl_cny: 492.61
+holdings:
+  - code: '301660'
+    name_display: '粤芯半导'
+    shares: 1800
+    snapshot_price_cny: 30.450
+    displayed_cost_cny: 34.350
+    market_value_cny: 54810.00
+    displayed_pnl_cny: -7019.11
+    research_priority: 1
+  - code: '301297'
+    name_display: '富乐德'
+    shares: 900
+    snapshot_price_cny: 36.840
+    displayed_cost_cny: 59.410
+    market_value_cny: 33156.00
+    displayed_pnl_cny: -20313.18
+    research_priority: 2
+watch_only:
+  - code: '300136'
+    name_display: '信维通信'
+limitations:
+  - Snapshot is historical and not a live brokerage connection.
+  - Securities names must be verified against an authoritative code-to-name source.
+  - Brokerage aggregate PnL and per-holding PnL have different scopes; do not force reconciliation.
+  - No orders, simulated trades, or account-state writes may use this snapshot.
