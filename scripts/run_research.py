@@ -121,8 +121,16 @@ def main(argv=None):
             report = store.apply(packet['session'], packet['previous_session'], packet['bars'],
                                  packet.get('candidate'), packet.get('research', {}))
         else:
-            catch_up(store, cfg, now)
-            report = close_research(cfg, store, now)
+            # A delayed scheduled close must not settle or generate retrospective orders
+            # before the current Shanghai session has completed.
+            local = now.astimezone(ZoneInfo('Asia/Shanghai'))
+            if local.hour < 16:
+                report = {'mode': 'close', 'skipped': 'before_completed_session',
+                          'generated_at': now.isoformat(),
+                          'limitations': ['No catch-up, AI orders, or settlement executed.']}
+            else:
+                catch_up(store, cfg, now)
+                report = close_research(cfg, store, now)
     elif args.mode == 'morning':
         session, _ = current_session(now)
         from src.research.morning import morning_holdings
