@@ -12,7 +12,7 @@ from src.research.sources import raw_history
 HOLDINGS = ('300136', '301297', '301660')
 
 
-def morning_holdings(cfg, now):
+def morning_holdings(cfg, now, codes=None):
     from data_provider import DataFetcherManager
     from src.analyzer import GeminiAnalyzer
     from src.config import get_config
@@ -31,7 +31,7 @@ def morning_holdings(cfg, now):
         return result
     analyzer = None
     manager = None
-    for code in HOLDINGS:
+    for code in (HOLDINGS if codes is None else tuple(codes)):
         packet = {'code': code, 'as_of_session': cutoff, 'analysis': None,
                   'evidence': None, 'data_source': None, 'data_date': None}
         try:
