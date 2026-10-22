@@ -35,6 +35,14 @@ def build_report(config_path, snapshot_path, now=None):
         "watch_only_codes": snapshot["watch_only_codes"],
         "coverage": evaluate_coverage(deep.get("holdings", []), snapshot),
         "deep_research": deep,
+        "research_status": ("complete" if deep.get("complete") and
+                            evaluate_coverage(deep.get("holdings", []), snapshot)["full"] ==
+                            len(snapshot["priority_codes"]) else "degraded"),
+        "failure_reasons": [
+            {"code": p.get("code"), "status": p.get("status", "missing"),
+             "error": p.get("error", "analysis unavailable")}
+            for p in deep.get("holdings", []) if p.get("status") not in ("complete", "limited")
+        ],
         "limitations": snapshot["limitations"] + [
             "Historical broker screenshot, not live portfolio data.",
             "No paper or real trading actions; no account state is read or written.",
